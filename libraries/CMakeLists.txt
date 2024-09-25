@@ -167,3 +167,26 @@ target_include_directories(SNTP_FILES PUBLIC
         ${WIZNET_DIR}/Ethernet
         ${WIZNET_DIR}/Internet/SNTP
         )
+
+# coap Library
+add_library(COAP_SERVER_FILES STATIC)
+
+target_sources(COAP_SERVER_FILES PUBLIC
+        ${WIZNET_DIR}/../coapLibrary/coapServer/coapServer.c
+        )
+
+target_include_directories(COAP_SERVER_FILES PUBLIC
+        ${WIZNET_DIR}/Ethernet
+        ${WIZNET_DIR}/../coapLibrary/coapServer
+        )
+
+add_library(COAP_CLIENT_FILES STATIC)
+
+target_sources(COAP_CLIENT_FILES PUBLIC
+        ${WIZNET_DIR}/../coapLibrary/coapClient/coapClient.c
+        )
+
+target_include_directories(COAP_CLIENT_FILES PUBLIC
+        ${WIZNET_DIR}/Ethernet
+        ${WIZNET_DIR}/../coapLibrary/coapClient
+        )

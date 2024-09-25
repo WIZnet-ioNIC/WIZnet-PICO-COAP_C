@@ -1,4 +1,4 @@
-set(TARGET_NAME w5x00_mqtt_publish_subscribe)
+set(TARGET_NAME w5x00_coap_client)
 
 add_executable(${TARGET_NAME}
         ${TARGET_NAME}.c
@@ -7,14 +7,15 @@ add_executable(${TARGET_NAME}
 target_link_libraries(${TARGET_NAME} PRIVATE
         pico_stdlib
         hardware_spi
+        hardware_gpio
         hardware_dma
         ETHERNET_FILES
         IOLIBRARY_FILES
-        MQTT_FILES
-        TIMER_FILES
+        COAP_CLIENT_FILES
+        TIMER_FILES		
         )
 
 pico_enable_stdio_usb(${TARGET_NAME} 1)
 pico_enable_stdio_uart(${TARGET_NAME} 0)
 
-pico_add_extra_outputs(w5x00_mqtt_publish_subscribe)
+pico_add_extra_outputs(${TARGET_NAME})

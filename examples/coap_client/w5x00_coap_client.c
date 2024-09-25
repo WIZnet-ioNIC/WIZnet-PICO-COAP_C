@@ -10,16 +10,19 @@
  * ----------------------------------------------------------------------------------------------------
  */
 #include <stdio.h>
+#include <string.h>
 
 #include "port_common.h"
 
 #include "wizchip_conf.h"
 #include "w5x00_spi.h"
 
-#include "sntp.h"
+#include "coapClient.h"
 
 #include "timer.h"
 
+#include "wizchip_conf.h"
+#include "socket.h"
 /**
  * ----------------------------------------------------------------------------------------------------
  * Macros
@@ -32,13 +35,10 @@
 #define ETHERNET_BUF_MAX_SIZE (1024 * 2)
 
 /* Socket */
-#define SOCKET_SNTP 0
+#define SOCKET_COAP 0
 
-/* Timeout */
-#define RECV_TIMEOUT (1000 * 10) // 10 seconds
-
-/* Timezone */
-#define TIMEZONE 40 // Korea
+/* Port */
+#define PORT_COAP 5683
 
 /**
  * ----------------------------------------------------------------------------------------------------
@@ -48,7 +48,7 @@
 /* Network */
 static wiz_NetInfo g_net_info =
     {
-        .mac = {0x00, 0x08, 0xDC, 0x12, 0x34, 0x56}, // MAC address
+        .mac = {0x00, 0x08, 0xDC, 0x12, 0x34, 0x57}, // MAC address
         .ip = {192, 168, 11, 2},                     // IP address
         .sn = {255, 255, 255, 0},                    // Subnet Mask
         .gw = {192, 168, 11, 1},                     // Gateway
@@ -56,13 +56,16 @@ static wiz_NetInfo g_net_info =
         .dhcp = NETINFO_STATIC                       // DHCP enable/disable
 };
 
-/* SNTP */
-static uint8_t g_sntp_buf[ETHERNET_BUF_MAX_SIZE] = {
+/* COAP */
+static uint8_t g_coap_send_buf[ETHERNET_BUF_MAX_SIZE] = {
     0,
 };
-static uint8_t g_sntp_server_ip[4] = {216, 239, 35, 0}; // time.google.com
+static uint8_t g_coap_recv_buf[ETHERNET_BUF_MAX_SIZE] = {
+    0,
+};
+coap_packet_t tx_pkt;
 
-/* Timer */
+/* Timer  */
 static volatile uint32_t g_msec_cnt = 0;
 
 /**
@@ -82,12 +85,18 @@ static time_t millis(void);
  * Main
  * ----------------------------------------------------------------------------------------------------
  */
+
 int main()
 {
     /* Initialize */
-    uint8_t retval = 0;
-    uint32_t start_ms = 0;
-    datetime time;
+    int retval = 0;
+    int32_t ret;
+    uint8_t scratch_raw[ETHERNET_BUF_MAX_SIZE];
+    coap_rw_buffer_t scratch_buf = {scratch_raw, sizeof(scratch_raw)};
+    uint8_t payload[] = ""; 
+    uint8_t uri_path[] = ".well-known/core"; 
+    size_t payload_len = strlen((char *)payload);
+    size_t uri_path_len = strlen((char *)uri_path);
 
     set_clock_khz();
 
@@ -104,39 +113,19 @@ int main()
 
     network_initialize(g_net_info);
 
-    SNTP_init(SOCKET_SNTP, g_sntp_server_ip, TIMEZONE, g_sntp_buf);
-
     /* Get network information */
     print_network_information(g_net_info);
 
-    start_ms = millis();
+    coapClient_init(g_coap_send_buf, g_coap_recv_buf, SOCKET_COAP);
 
-    /* Get time */
-    do
+    coap_make_request(&scratch_buf, &tx_pkt, uri_path, uri_path_len, payload, payload_len, 0x12, 0x34, NULL, COAP_METHOD_GET, COAP_CONTENTTYPE_APPLICATION_LINKFORMAT);
+
+    while(1)
     {
-        retval = SNTP_run(&time);
-
-        if (retval == 1)
-        {
-            break;
-        }
-    } while ((millis() - start_ms) < RECV_TIMEOUT);
-
-    if (retval != 1)
-    {
-        printf(" SNTP failed : %d\n", retval);
-
-        while (1)
-            ;
+        coapClient_run();
+        sleep_ms(1000);
     }
-
-    printf(" %d-%d-%d, %d:%d:%d\n", time.yy, time.mo, time.dd, time.hh, time.mm, time.ss);
-
-    /* Infinite loop */
-    while (1)
-    {
-        ; // nothing to do
-    }
+    
 }
 
 /**
@@ -164,6 +153,8 @@ static void set_clock_khz(void)
 static void repeating_timer_callback(void)
 {
     g_msec_cnt++;
+
+    MilliTimer_Handler();
 }
 
 static time_t millis(void)
